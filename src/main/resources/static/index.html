@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Trip Status</title>
+    <style>
+        .spinner {
+            margin: 100px auto;
+            width: 80px;
+            height: 80px;
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div id="spinner" class="spinner hidden"></div>
+<div id="message"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+    const userId = prompt("Enter your userId:");
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function(frame) {
+        // Subscribe to user-specific destinations
+        stompClient.subscribe('/topic/create-trip/' + userId, function(message) {
+            console.log('Received create-trip message:', message.body);
+            document.getElementById('spinner').classList.remove('hidden');
+            document.getElementById('message').innerText = message.body;
+        });
+
+        stompClient.subscribe('/topic/hide-spinner/' + userId, function(message) {
+            console.log('Received hide-spinner message:', message.body);
+            document.getElementById('spinner').classList.add('hidden');
+
+            try {
+                const trip = JSON.parse(message.body);
+                document.getElementById('message').innerHTML =
+                    'Trip ID: ' + trip.id + '<br>' +
+                    'Start location: ' + trip.startLocation + '<br>' +
+                    'End location: ' + trip.endLocation + '<br>' +
+                    'Driver: ' + trip.driverId + '<br>' +
+                    'Status: ' + trip.status;
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                document.getElementById('message').innerText = message.body;
+            }
+        });
+    }, function(error) {
+        console.error('Connection error:', error);
+        document.getElementById('message').innerText = 'WebSocket connection failed';
+    });
+</script>
+</body>
+</html>
